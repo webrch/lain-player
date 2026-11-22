@@ -7,7 +7,7 @@
   const native = !!(window.AndroidBridge && window.AndroidBridge.getSetting);
   const DEFAULTS = {
     token: '', clientId: '', wall: 'default', icon: 'cross',
-    speed: '1', autoNext: 'true', dark: 'false', library: '',
+    speed: '1', autoNext: 'true', dark: 'false', library: '', volume: '100',
     localTracks: '', ghRepo: ''
   };
   const WALLS = {
@@ -27,7 +27,7 @@
     current: null, playing: false, seeking: false,
     shuffle: false, repeat: false, searchTimer: null,
     libTab: 'liked', cbId: 0, callbacks: {}, streamCache: {},
-    localTracks: [], hls: null
+    localTracks: [], hls: null, lastVolume: 100
   };
   window.__lainLocalFiles = function (json) {
     try {
@@ -253,6 +253,17 @@
     paintRange($('speedSetting'));
   }
 
+  function setVolume(v, persist) {
+    const value = Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+    audio.volume = value / 100;
+    if (value > 0) state.lastVolume = value;
+    $('volumeBar').value = value;
+    $('volValue').textContent = value + '%';
+    $('muteBtn').classList.toggle('muted', value === 0);
+    paintRange($('volumeBar'));
+    if (persist !== false) saveSetting('volume', value);
+  }
+
   function updatePlayIcons() {
     const path = state.playing ? 'M6 5h4v14H6V5Zm8 0h4v14h-4V5Z' : 'M8 5v14l11-7z';
     $('playIcon').innerHTML = `<path d="${path}"/>`;
@@ -444,6 +455,11 @@
     if (dur) audio.currentTime = dur * e.target.value / 1000;
     state.seeking = false;
   });
+  $('volumeBar').addEventListener('input', e => setVolume(e.target.value));
+  $('muteBtn').addEventListener('click', () => {
+    const current = Number($('volumeBar').value);
+    setVolume(current > 0 ? 0 : (state.lastVolume || 100));
+  });
   $('speedChips').addEventListener('click', e => { const b = e.target.closest('[data-speed]'); if (b) setSpeed(b.dataset.speed); });
   $('speedSetting').addEventListener('input', e => setSpeed(e.target.value));
 
@@ -560,6 +576,7 @@
   });
   $('speedSetting').value = state.settings.speed;
   setSpeed(state.settings.speed);
+  setVolume(state.settings.volume, false);
   $('autoNextSwitch').classList.toggle('active', state.settings.autoNext === 'true');
   $('autoNextSwitch').addEventListener('click', () => {
     const v = state.settings.autoNext === 'true' ? 'false' : 'true';

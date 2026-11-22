@@ -350,6 +350,17 @@ body.dark .player-backdrop::after { background: linear-gradient(180deg, rgba(21,
 .play-fab { width: 92px; height: 76px; border-radius: 28px; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; box-shadow: 0 10px 26px color-mix(in srgb, var(--primary) 38%, transparent); transition: transform .15s; }
 .play-fab:active { transform: scale(.94); }
 .play-fab svg { width: 36px; height: 36px; }
+.volume-row {
+  display: flex; align-items: center; gap: 12px; margin-top: 16px;
+  background: var(--surface-1); border: 1px solid var(--outline);
+  border-radius: var(--r-pill); padding: 6px 14px 6px 8px;
+}
+.vol-btn { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--on-surface-variant); flex: 0 0 auto; transition: background .2s; }
+.vol-btn:active { background: var(--surface-2); }
+.vol-btn.muted { color: var(--tertiary); }
+.vol-btn svg { width: 22px; height: 22px; }
+.volume-row input[type=range] { flex: 1; min-width: 0; height: 6px; }
+.vol-value { font-size: 11px; font-family: monospace; color: var(--on-surface-variant); min-width: 38px; text-align: right; flex: 0 0 auto; }
 .speed-row { margin-top: 20px; text-align: center; }
 .speed-row > span { font-size: 10px; letter-spacing: .2em; color: var(--on-surface-variant); font-weight: 800; }
 .speed-chips { display: flex; justify-content: center; gap: 7px; margin-top: 11px; flex-wrap: wrap; }

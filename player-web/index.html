@@ -268,6 +268,14 @@
         </button>
       </div>
 
+      <div class="volume-row">
+        <button class="vol-btn" id="muteBtn" aria-label="Звук">
+          <svg viewBox="0 0 24 24" id="volIcon"><path d="M3 9v6h4l5 5V4L7 9H3Zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4Z"/></svg>
+        </button>
+        <input type="range" id="volumeBar" min="0" max="100" value="100" aria-label="Громкость">
+        <span class="vol-value" id="volValue">100%</span>
+      </div>
+
       <div class="speed-row">
         <span>СКОРОСТЬ</span>
         <div class="speed-chips" id="speedChips">
