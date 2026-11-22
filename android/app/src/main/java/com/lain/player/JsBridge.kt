@@ -198,6 +198,42 @@ class JsBridge(private val activity: MainActivity) {
         }
     }
 
+    @JavascriptInterface
+    fun updateMedia(
+        title: String,
+        artist: String,
+        artUrl: String,
+        durationMs: Long,
+        isPlaying: Boolean,
+        positionMs: Long,
+        playbackSpeed: Float
+    ) {
+        activity.runOnUiThread {
+            try {
+                MusicService.ensureStarted(activity)
+                val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                var attempts = 0
+                fun push() {
+                    val service = MusicService.instance
+                    if (service != null) {
+                        service.update(title, artist, artUrl, durationMs, isPlaying, positionMs, playbackSpeed)
+                    } else if (attempts++ < 10) {
+                        handler.postDelayed({ push() }, 150)
+                    }
+                }
+                push()
+            } catch (e: Exception) { /* notification permission may be denied */ }
+        }
+    }
+
+    @JavascriptInterface
+    fun stopMedia() {
+        activity.runOnUiThread {
+            try { activity.stopService(android.content.Intent(activity, MusicService::class.java)) }
+            catch (e: Exception) { /* ignore */ }
+        }
+    }
+
     private fun getJson(url: String, token: String): JSONObject {
         val request = Request.Builder()
             .url(url)

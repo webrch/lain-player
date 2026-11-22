@@ -59,6 +59,35 @@
     });
   }
 
+  /* ---------- media session (shade / lock screen) ---------- */
+  window.__lainMediaControl = function (action, value) {
+    switch (action) {
+      case 'play': if (!state.playing) togglePlay(); break;
+      case 'pause': if (state.playing) togglePlay(); break;
+      case 'toggle': togglePlay(); break;
+      case 'next': next(false); break;
+      case 'prev': prev(); break;
+      case 'seek':
+        if (audio.duration && value != null) audio.currentTime = (Number(value) || 0) / 1000;
+        break;
+    }
+  };
+  let lastMediaPush = 0;
+  function pushMediaState(force) {
+    if (!native || !window.AndroidBridge.updateMedia) return;
+    const now = Date.now();
+    if (!force && now - lastMediaPush < 1500) return;
+    lastMediaPush = now;
+    const t = state.current;
+    if (!t) { window.AndroidBridge.stopMedia(); return; }
+    const dur = Math.round((audio.duration || t.duration || 0) * 1000);
+    const pos = Math.round((audio.currentTime || 0) * 1000);
+    window.AndroidBridge.updateMedia(
+      t.title || 'LAIN', t.artist || 'Лейн', t.art || '',
+      dur, state.playing, pos, parseFloat(state.settings.speed) || 1
+    );
+  }
+
   /* ---------- storage ---------- */
   function loadSettings() {
     const local = {};
@@ -304,6 +333,7 @@
     document.querySelectorAll('#speedChips button').forEach(b => b.classList.toggle('active', b.dataset.speed == v));
     $('speedSetting').value = v;
     paintRange($('speedSetting'));
+    pushMediaState(true);
   }
 
   function setVolume(v, persist) {
@@ -385,6 +415,7 @@
     const path = state.playing ? 'M6 5h4v14H6V5Zm8 0h4v14h-4V5Z' : 'M8 5v14l11-7z';
     $('playIcon').innerHTML = `<path d="${path}"/>`;
     $('miniPlayIcon').innerHTML = `<path d="${path}"/>`;
+    pushMediaState(true);
   }
   function updateTrackUI() {
     const t = state.current;
@@ -397,6 +428,7 @@
     $('sourceBadge').textContent = t && t.local ? 'ЛОКАЛЬНЫЙ ФАЙЛ' : 'SOUNDCLOUD';
     $('likeBtn').classList.toggle('liked', !!(t && isLiked(t)));
     $('curTime').textContent = '0:00'; $('durTime').textContent = t ? fmt(t.duration) : '0:00';
+    pushMediaState(true);
   }
   function isLiked(t) { return state.liked.some(x => String(x.id) === String(t.id)); }
   function toggleLike(t) {
@@ -420,6 +452,7 @@
     $('miniProgressBar').style.width = (pct * 100) + '%';
     $('curTime').textContent = fmt(audio.currentTime);
     if (audio.duration) $('durTime').textContent = fmt(audio.duration);
+    pushMediaState(false);
   });
   audio.addEventListener('ended', () => next(true));
   audio.addEventListener('play', () => { state.playing = true; updatePlayIcons(); });
@@ -620,6 +653,7 @@
     const dur = audio.duration || 0;
     if (dur) audio.currentTime = dur * e.target.value / 1000;
     state.seeking = false;
+    pushMediaState(true);
   });
   $('volumeBar').addEventListener('input', e => setVolume(e.target.value));
   $('muteBtn').addEventListener('click', () => {

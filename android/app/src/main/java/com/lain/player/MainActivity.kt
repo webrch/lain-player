@@ -140,6 +140,14 @@ class MainActivity : Activity() {
             addJavascriptInterface(JsBridge(this@MainActivity), "AndroidBridge")
         }
         setContentView(webView)
+        PlayerController.attach(webView)
+
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7)
+        }
+
         webView.loadUrl("file:///android_asset/web/index.html")
     }
 
@@ -172,6 +180,11 @@ class MainActivity : Activity() {
             PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
             PackageManager.DONT_KILL_APP
         )
+    }
+
+    override fun onDestroy() {
+        PlayerController.detach(webView)
+        super.onDestroy()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
