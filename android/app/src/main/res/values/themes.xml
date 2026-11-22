@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Lain" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorAccent">#D7A98F</item>
+        <item name="android:windowBackground">#3E2723</item>
+        <item name="android:statusBarColor">#4E342E</item>
+        <item name="android:navigationBarColor">#3E2723</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

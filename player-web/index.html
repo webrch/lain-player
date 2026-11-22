@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#4E342E">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/cross-192.png">
+<link rel="stylesheet" href="styles.css">
+<title>LAIN — плеер</title>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- TOP BAR -->
+  <header class="topbar" id="topbar">
+    <div class="brand">
+      <img id="brandIcon" class="brand-icon" src="assets/icons/cross-512.png" alt="LAIN">
+      <div class="brand-text">
+        <div class="brand-title" data-glitch="LAIN">LAIN</div>
+        <div class="brand-sub">系 = CONNECTING</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="btnTheme" aria-label="Тема">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1Z"/></svg>
+      </button>
+      <button class="icon-btn" id="btnSettings" aria-label="Настройки">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.8 7.8 0 0 0 .05-.94 7.8 7.8 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.66 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.62-.05.94s.02.63.05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.61.22l2.39-.96c.49.38 1.03.7 1.62.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.09.48 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.02-1.54ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- SEARCH SCREEN -->
+  <main class="screen active" id="screen-search">
+    <div class="search-wrap">
+      <svg class="search-ico" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14Z"/></svg>
+      <input id="searchInput" type="search" placeholder="Найти на SoundCloud..." autocomplete="off" enterkeyhint="search">
+      <button class="clear-btn" id="clearSearch" aria-label="Очистить">✕</button>
+    </div>
+
+    <div class="chips" id="searchChips">
+      <button class="chip active" data-genre="electronic">Электроника</button>
+      <button class="chip" data-genre="ambient">Эмбиент</button>
+      <button class="chip" data-genre="lofi">Lo-fi</button>
+      <button class="chip" data-genre="vaporwave">Вейпорвейв</button>
+      <button class="chip" data-genre="rock">Рок</button>
+    </div>
+
+    <div class="section-head">
+      <h2 id="resultsTitle">Для тебя</h2>
+      <span class="section-meta" id="resultsCount"></span>
+    </div>
+
+    <div class="skeleton-list" id="skeleton"></div>
+    <div class="track-list" id="searchResults"></div>
+    <div class="empty-state" id="searchEmpty">
+      <div class="empty-emoji">◤ ◥</div>
+      <p id="searchEmptyText">Введи запрос, чтобы найти музыку.</p>
+      <p class="empty-sub">「ここにいる」 — я здесь</p>
+    </div>
+  </main>
+
+  <!-- LIBRARY SCREEN -->
+  <main class="screen" id="screen-library">
+    <div class="section-head big">
+      <h2>Медиатека</h2>
+    </div>
+    <div class="library-tabs">
+      <button class="lib-tab active" data-lib="liked">Любимое</button>
+      <button class="lib-tab" data-lib="playlists">Плейлисты</button>
+      <button class="lib-tab" data-lib="recent">Недавнее</button>
+      <button class="lib-tab" data-lib="files">Файлы</button>
+    </div>
+
+    <div id="lib-liked" class="lib-pane active">
+      <div class="playlist-hero liked-hero" id="likedHero">
+        <div class="hero-art">♥</div>
+        <div class="hero-info"><div class="hero-label">Плейлист</div><div class="hero-title">Любимые треки</div><div class="hero-count" id="likedCount">0 треков</div></div>
+        <button class="hero-play" id="playLiked">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+      </div>
+      <div class="track-list" id="likedList"></div>
+      <div class="empty-state small" id="likedEmpty"><p>Пока пусто. Нажми ♥ на треке, чтобы сохранить его здесь.</p></div>
+    </div>
+
+    <div id="lib-playlists" class="lib-pane">
+      <button class="new-playlist" id="newPlaylist"><span class="plus">+</span> Новый плейлист</button>
+      <div class="playlist-grid" id="playlistGrid"></div>
+    </div>
+
+    <div id="lib-recent" class="lib-pane">
+      <div class="track-list" id="recentList"></div>
+      <div class="empty-state small" id="recentEmpty"><p>Здесь появятся недавно сыгранные треки.</p></div>
+    </div>
+
+    <div id="lib-files" class="lib-pane">
+      <button class="pick-btn" id="pickAudio">
+        <svg viewBox="0 0 24 24"><path d="M12 3v10.6a4 4 0 1 0 2 3.4V7h5V3h-7Z"/></svg>
+        Выбрать MP3 с устройства
+      </button>
+      <div class="local-count" id="localCount">0 треков на устройстве</div>
+      <div class="track-list" id="localList"></div>
+      <div class="empty-state small" id="localEmpty"><p>Выбери музыку из памяти телефона — она появится здесь и будет играть без интернета.</p></div>
+    </div>
+  </main>
+
+  <!-- SETTINGS SCREEN -->
+  <main class="screen" id="screen-settings">
+    <div class="section-head big"><h2>Настройки</h2></div>
+
+    <section class="settings-card">
+      <div class="card-heading">SoundCloud</div>
+      <label class="field-label" for="tokenInput">Токен аккаунта</label>
+      <div class="input-row">
+        <input id="tokenInput" type="password" placeholder="Вставь OAuth-токен" spellcheck="false">
+        <button class="mini-btn" id="toggleToken">Показать</button>
+      </div>
+      <p class="hint" id="tokenStatus">Токен не задан</p>
+      <label class="field-label" for="clientInput">Client ID <span class="optional">необязательно</span></label>
+      <input id="clientInput" type="text" placeholder="Для прямого потока в браузере" spellcheck="false">
+      <button class="filled-btn" id="saveToken">Сохранить и проверить</button>
+      <details class="help-details">
+        <summary>Где взять токен?</summary>
+        <p>Войди в soundcloud.com в браузере → F12 → Application → Local Storage → <code>soundcloud</code> → скопируй значение <code>oauth_token</code>. Либо зарегистрируй приложение в SoundCloud API и получи токен по OAuth2.</p>
+      </details>
+    </section>
+
+    <section class="settings-card">
+      <div class="card-heading">Обои</div>
+      <div class="preset-grid" id="wallpaperPresets"></div>
+    </section>
+
+    <section class="settings-card">
+      <div class="card-heading">Иконка приложения</div>
+      <div class="preset-grid" id="iconPresets"></div>
+      <p class="hint">Иконки скруглены по стандарту Android. Пресет применяется к ярлыку на рабочем столе (перезапуск домашнего экрана может потребоваться).</p>
+    </section>
+
+    <section class="settings-card">
+      <div class="card-heading">Воспроизведение</div>
+      <div class="setting-row">
+        <div><div class="row-title">Скорость по умолчанию</div><div class="row-sub" id="speedSub">1.0×</div></div>
+        <input type="range" id="speedSetting" min="0.5" max="2" step="0.25" value="1">
+      </div>
+      <div class="setting-row">
+        <div><div class="row-title">Автопродолжение</div><div class="row-sub">Играть следующий трек автоматически</div></div>
+        <button class="switch active" id="autoNextSwitch" aria-label="Автопродолжение"><span></span></button>
+      </div>
+      <div class="setting-row">
+        <div><div class="row-title">Тёмная тема</div><div class="row-sub">Коричнево-белая палитра</div></div>
+        <button class="switch" id="darkSwitch" aria-label="Тёмная тема"><span></span></button>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <div class="card-heading">Обновления</div>
+      <div class="setting-row">
+        <div><div class="row-title">Проверка релизов GitHub</div><div class="row-sub" id="updateStatus">Проверяем...</div></div>
+        <button class="mini-btn" id="checkUpdate">Проверить</button>
+        <button class="mini-btn" id="openRelease">Открыть</button>
+      </div>
+      <label class="field-label" for="repoInput">Репозиторий (owner/repo)</label>
+      <input id="repoInput" type="text" placeholder="lain-player/lain-player" spellcheck="false">
+      <p class="hint">Если поле пустое, приложение найдёт репозиторий <code>lain-player</code> через поиск GitHub.</p>
+    </section>
+
+    <section class="settings-card about-card">
+      <img src="assets/icons/lain-512.png" class="about-icon" alt="">
+      <div><div class="about-title">LAIN</div><div class="about-sub">персональный плеер · v1.0</div><div class="about-quote">「あなたの音楽は、ここにある」</div></div>
+    </section>
+    <div class="bottom-space"></div>
+  </main>
+
+  <!-- MINI PLAYER -->
+  <div class="mini-player" id="miniPlayer">
+    <div class="mini-track" id="miniTrack">
+      <img class="mini-art" id="miniArt" src="assets/icons/cross-512.png" alt="">
+      <div class="mini-meta"><div class="mini-title" id="miniTitle">Ничего не играет</div><div class="mini-artist" id="miniArtist">LAIN</div></div>
+    </div>
+    <div class="mini-controls">
+      <button class="icon-btn small" id="miniPlay" aria-label="Play">
+        <svg viewBox="0 0 24 24" id="miniPlayIcon"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="icon-btn small" id="miniNext" aria-label="Следующий">
+        <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12ZM16 6v12h2V6h-2Z"/></svg>
+      </button>
+    </div>
+    <div class="mini-progress"><div id="miniProgressBar"></div></div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-nav="search">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14Z"/></svg>
+      <span>Поиск</span>
+    </button>
+    <button class="nav-item" data-nav="library">
+      <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10Zm0 8h8v-6H3v6Zm10 0h8V11h-8v10Zm0-18v6h8V3h-8Z"/></svg>
+      <span>Медиатека</span>
+    </button>
+    <button class="nav-item" data-nav="settings">
+      <svg viewBox="0 0 24 24"><path d="M19.14 12.94a7.8 7.8 0 0 0 .05-.94 7.8 7.8 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.66 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.62-.05.94s.02.63.05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.61.22l2.39-.96c.49.38 1.03.7 1.62.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.09.48 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.02-1.54ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg>
+      <span>Настройки</span>
+    </button>
+  </nav>
+
+  <!-- FULL PLAYER -->
+  <div class="player-sheet" id="playerSheet">
+    <div class="player-backdrop" id="playerBackdrop"></div>
+    <div class="player-content">
+      <div class="player-handle" id="playerHandle"></div>
+      <div class="player-bar">
+        <button class="icon-btn" id="closePlayer" aria-label="Закрыть">
+          <svg viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6 1.4 1.4-6 6-6-6 1.4-1.4Z"/></svg>
+        </button>
+        <div class="player-bar-label">СЕЙЧАС ИГРАЕТ</div>
+        <button class="icon-btn" id="playerMore" aria-label="Ещё">
+          <svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>
+        </button>
+      </div>
+
+      <div class="player-art-wrap">
+        <img class="player-art" id="playerArt" src="assets/icons/cross-512.png" alt="">
+        <div class="player-art-glow"></div>
+      </div>
+
+      <div class="player-meta">
+        <div class="player-title-row">
+          <div><h1 id="playerTitle">Ничего не играет</h1><p id="playerArtist">LAIN</p></div>
+          <button class="icon-btn like-btn" id="likeBtn" aria-label="Нравится">
+            <svg viewBox="0 0 24 24" id="likeIcon"><path d="M12 21 3.6 12.6a5 5 0 0 1 7.1-7.1l1.3 1.3 1.3-1.3a5 5 0 0 1 7.1 7.1L12 21Z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="seek-wrap">
+        <input type="range" id="seekBar" min="0" max="1000" value="0">
+        <div class="seek-times"><span id="curTime">0:00</span><span id="durTime">0:00</span></div>
+      </div>
+
+      <div class="player-controls">
+        <button class="ctrl" id="shuffleBtn" aria-label="Перемешать">
+          <svg viewBox="0 0 24 24"><path d="M17 3h4v4h-2V5.9c-3.1 0-4.8 1.9-6.4 3.7L11 11.2 8.8 8.6C10.4 6.6 12.3 4.5 16 4.5V3H17ZM3 6h3.5c2.2 0 3.6 1 4.9 2.5L10 9.9C9 8.7 8.2 8 6.5 8H5v2l-3-3 3-3v2H3V6Zm14 12h-1v-1.5c-3.7 0-5.6-2.1-7.2-4.1l1.2-1.3c1.6 1.8 3.3 3.4 6 3.4V15h2v4l3-3-3-3v2h-1Zm-13-2h1.5c1.7 0 2.5-.7 3.5-1.9l1.4 1.4C9.1 17 7.7 18 5.5 18H3v-2l1 1v1Z"/></svg>
+        </button>
+        <button class="ctrl" id="prevBtn" aria-label="Предыдущий">
+          <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6V6Zm3 6 8.5 6V6L9 12Z"/></svg>
+        </button>
+        <button class="play-fab" id="playBtn" aria-label="Play">
+          <svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="ctrl" id="nextBtn" aria-label="Следующий">
+          <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2V6ZM8 18l8.5-6L8 6v12Z"/></svg>
+        </button>
+        <button class="ctrl" id="repeatBtn" aria-label="Повтор">
+          <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7Zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4Z"/></svg>
+        </button>
+      </div>
+
+      <div class="speed-row">
+        <span>СКОРОСТЬ</span>
+        <div class="speed-chips" id="speedChips">
+          <button data-speed="0.5">0.5×</button>
+          <button data-speed="0.75">0.75×</button>
+          <button data-speed="1" class="active">1×</button>
+          <button data-speed="1.25">1.25×</button>
+          <button data-speed="1.5">1.5×</button>
+          <button data-speed="2">2×</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="glitch-overlay"></div>
+</div>
+
+<audio id="audio" preload="none"></audio>
+<script src="app.js"></script>
+</body>
+</html>
