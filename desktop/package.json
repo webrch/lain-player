@@ -1,0 +1,16 @@
+{
+  "name": "lain-player-desktop",
+  "version": "1.0.0",
+  "description": "LAIN player - desktop edition",
+  "main": "main.js",
+  "author": "webrch",
+  "license": "MIT",
+  "scripts": {
+    "copy-web": "node scripts/copy-web.js",
+    "start": "npm run copy-web && electron .",
+    "build": "node scripts/build.js"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0"
+  }
+}

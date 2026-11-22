@@ -1,7 +1,7 @@
 # LAIN — персональный музыкальный плеер
 
 <p align="center">
-  <img src="icons/app_icon.png" width="120" alt="LAIN">
+  <img src="player-web/assets/icons/lain-512.png" width="120" alt="LAIN">
 </p>
 
 **LAIN** — минималистичный и выразительный музыкальный плеер для Android с оформлением в духе Material 3 Expressive и палитрой Лейн Ивакуры. Слушай музыку из SoundCloud и с устройства, собирай плейлисты, меняй обои и иконку — всё в одном приложении.
@@ -75,6 +75,23 @@ gh repo create lain-player --public --source=. --remote=origin --push
 ```powershell
 git remote add origin https://github.com/<твой-логин>/lain-player.git
 git push -u origin master
+```
+
+## 💻 Версия для ПК
+
+Десктопное приложение на Electron использует тот же интерфейс, что и Android-версия. В репозитории лежит исходник в `desktop/`, готовый портативный сборщик публикуется в [релизах](https://github.com/webrch/lain-player/releases) архивом `LAIN-win32-x64.zip`.
+
+- Распакуй архив и запусти `LAIN.exe`.
+- Токен SoundCloud вводится в Настройках так же, как в мобильной версии.
+- Кнопка «Выбрать MP3 с устройства» открывает системный диалог выбора файлов.
+- Проверка обновлений работает так же и выполняется при запуске.
+
+Сборка из исходников (нужны Node.js 20+):
+
+```powershell
+cd desktop
+npm install
+npm run build
 ```
 
 ## 🧩 Исходный код (бонус)

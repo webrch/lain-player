@@ -5,6 +5,7 @@
   const $ = (id) => document.getElementById(id);
   const audio = $('audio');
   const native = !!(window.AndroidBridge && window.AndroidBridge.getSetting);
+  const electron = !!(window.ElectronBridge && window.ElectronBridge.pickAudio);
   const DEFAULTS = {
     token: '', clientId: '', wall: 'default', icon: 'cross',
     speed: '1', autoNext: 'true', dark: 'false', library: '', volume: '100', eq: '',
@@ -709,17 +710,43 @@
   }
 
   /* local files + updates */
-  $('pickAudio').addEventListener('click', () => {
-    if (!native || !window.AndroidBridge.pickAudio) {
-      toast('Выбор файлов доступен в Android-приложении');
+  $('pickAudio').addEventListener('click', async () => {
+    if (native && window.AndroidBridge.pickAudio) {
+      window.AndroidBridge.pickAudio();
       return;
     }
-    window.AndroidBridge.pickAudio();
+    if (electron) {
+      const tracks = await window.ElectronBridge.pickAudio();
+      if (!tracks || !tracks.length) return;
+      tracks.forEach(t => {
+        if (!state.localTracks.some(x => String(x.id) === String(t.id))) state.localTracks.unshift(t);
+      });
+      saveSetting('localTracks', JSON.stringify(state.localTracks));
+      renderLibrary();
+      toast('Добавлено файлов: ' + tracks.length);
+      return;
+    }
+    toast('Выбор файлов доступен в Android и desktop-приложении');
   });
   async function checkUpdates(silent) {
     const el = $('updateStatus');
     if (!native || !window.AndroidBridge.checkUpdate) {
-      el.textContent = 'Доступно в Android-приложении';
+      if (electron) {
+        if (!silent) el.textContent = 'Проверяем GitHub...';
+        try {
+          const res = await fetch('https://api.github.com/repos/webrch/lain-player/releases/latest');
+          if (res.status === 404) { el.textContent = 'Релизов пока нет'; return; }
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const d = await res.json();
+          window.__lainUpdateUrl = d.html_url || '';
+          const v = d.tag_name || '';
+          el.innerHTML = v
+            ? 'Релиз <b>' + esc(v) + '</b>' + (v !== 'v1.0' ? ' — доступно обновление' : ' — у тебя актуальная версия')
+            : 'Релизов пока нет';
+        } catch (e) { el.textContent = 'Не удалось проверить'; }
+      } else {
+        el.textContent = 'Доступно в Android и desktop-приложении';
+      }
       return;
     }
     if (!silent) el.textContent = 'Проверяем GitHub...';
@@ -736,6 +763,7 @@
   $('checkUpdate').addEventListener('click', () => checkUpdates(false));
   $('openRelease').addEventListener('click', () => {
     if (window.__lainUpdateUrl && native && window.AndroidBridge.openUrl) window.AndroidBridge.openUrl(window.__lainUpdateUrl);
+    else if (window.__lainUpdateUrl && electron) window.ElectronBridge.openUrl(window.__lainUpdateUrl);
     else toast('Сначала проверь обновления');
   });
 
@@ -785,5 +813,5 @@
   paintRange($('seekBar'));
   $('tokenStatus').textContent = state.settings.token ? 'Токен сохранён ✓' : 'Токен не задан';
   if ('serviceWorker' in navigator && !native) navigator.serviceWorker.register('sw.js').catch(() => {});
-  if (native) setTimeout(() => checkUpdates(true), 300);
+  if (native || electron) setTimeout(() => checkUpdates(true), 300);
 })();
