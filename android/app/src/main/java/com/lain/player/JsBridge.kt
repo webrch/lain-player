@@ -208,6 +208,80 @@ class JsBridge(private val activity: MainActivity) {
         }
     }
 
+    private fun getJson(url: String, token: String): JSONObject {
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "OAuth ${token.trim()}")
+            .header("Accept", "application/json")
+            .header("User-Agent", "LAIN-Player")
+            .build()
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw Exception("SoundCloud: HTTP ${response.code}")
+            return JSONObject(response.body?.string().orEmpty())
+        }
+    }
+
+    private fun scTrack(t: JSONObject): JSONObject {
+        val user = t.optJSONObject("user")
+        return JSONObject()
+            .put("id", t.optLong("id"))
+            .put("title", t.optString("title", "Без названия"))
+            .put("duration", t.optLong("duration", 0))
+            .put("artwork_url", t.optString("artwork_url", ""))
+            .put("uri", t.optString("uri", ""))
+            .put("likes_count", t.optInt("likes_count", 0))
+            .put("genre", t.optString("genre", ""))
+            .put("user", JSONObject().put("username", user?.optString("username", "Неизвестный") ?: "Неизвестный"))
+    }
+
+    /** Import liked tracks and playlists from the signed-in SoundCloud profile. */
+    @JavascriptInterface
+    fun importFromSoundCloud(kind: String, token: String, clientId: String, cbId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val json = try {
+                if (token.isBlank()) throw Exception("Сначала укажи токен")
+                val client = if (clientId.isNotBlank()) "&client_id=" + URLEncoder.encode(clientId, "UTF-8") else ""
+                val me = getJson("https://api-v2.soundcloud.com/me", token)
+                val uid = me.optLong("id")
+                val result = JSONObject()
+                val allTracks = JSONArray()
+                val allPlaylists = JSONArray()
+
+                var page: String? = "https://api-v2.soundcloud.com/users/$uid/" +
+                    (if (kind == "likes") "track_likes?limit=200$client" else "playlists?limit=200$client")
+                var pages = 0
+                while (page != null && pages < 5) {
+                    val data = getJson(page, token)
+                    val collection = data.optJSONArray("collection") ?: break
+                    for (i in 0 until collection.length()) {
+                        val item = collection.optJSONObject(i) ?: continue
+                        if (kind == "likes") {
+                            item.optJSONObject("track")?.let { allTracks.put(scTrack(it)) }
+                        } else {
+                            val playlist = JSONObject()
+                                .put("id", item.optLong("id"))
+                                .put("title", item.optString("title", "Плейлист SoundCloud"))
+                            val tracks = JSONArray()
+                            val source = item.optJSONArray("tracks") ?: JSONArray()
+                            for (j in 0 until source.length()) {
+                                source.optJSONObject(j)?.let { tracks.put(scTrack(it)) }
+                            }
+                            playlist.put("tracks", tracks)
+                            allPlaylists.put(playlist)
+                        }
+                    }
+                    page = data.optString("next_href", "").takeIf { it.isNotBlank() }
+                    pages++
+                }
+                if (kind == "likes") result.put("items", allTracks) else result.put("playlists", allPlaylists)
+                result.toString()
+            } catch (e: Exception) {
+                JSONObject().put("error", e.message ?: "Ошибка импорта").toString()
+            }
+            activity.eval("window.__lainCb('$cbId', ${JSONObject.quote(json)})")
+        }
+    }
+
     private fun findRepos(): List<String> {
         val request = Request.Builder()
             .url("https://api.github.com/search/repositories?q=lain-player+in:name&per_page=20")

@@ -6,3 +6,5 @@ android/.idea/
 *.iml
 __pycache__/
 .DS_Store
+LAIN.apk
+*.apk

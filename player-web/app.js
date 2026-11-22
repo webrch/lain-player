@@ -7,7 +7,7 @@
   const native = !!(window.AndroidBridge && window.AndroidBridge.getSetting);
   const DEFAULTS = {
     token: '', clientId: '', wall: 'default', icon: 'cross',
-    speed: '1', autoNext: 'true', dark: 'false', library: '', volume: '100',
+    speed: '1', autoNext: 'true', dark: 'false', library: '', volume: '100', eq: '',
     localTracks: '', ghRepo: ''
   };
   const WALLS = {
@@ -27,7 +27,10 @@
     current: null, playing: false, seeking: false,
     shuffle: false, repeat: false, searchTimer: null,
     libTab: 'liked', cbId: 0, callbacks: {}, streamCache: {},
-    localTracks: [], hls: null, lastVolume: 100
+    localTracks: [], hls: null, lastVolume: 100,
+    eq: { enabled: false, preset: 'flat', bands: [0,0,0,0,0,0,0,0,0,0], bass: 0, amp: 100 },
+    audioCtx: null, eqNodes: [], bassNode: null, ampNode: null,
+    repeat: 'off', shuffleOrder: [], shufflePos: -1
   };
   window.__lainLocalFiles = function (json) {
     try {
@@ -176,10 +179,40 @@
     return final;
   }
 
+  async function importFromSoundCloud(kind) {
+    const token = state.settings.token.trim();
+    if (!token) { toast('Сначала укажи токен в настройках'); navigate('settings'); return; }
+    if (!native || !window.AndroidBridge.importFromSoundCloud) {
+      toast('Импорт доступен в Android-приложении'); return;
+    }
+    toast(kind === 'likes' ? 'Импортируем лайки...' : 'Импортируем плейлисты...');
+    const r = await callNative('importFromSoundCloud', [kind, token, state.settings.clientId.trim()]);
+    if (!r) { toast('Не удалось импортировать'); return; }
+    if (r.error) { toast(r.error); return; }
+    const items = (r.items || []).map(normalize);
+    if (kind === 'likes') {
+      const ids = new Set(state.liked.map(x => String(x.id)));
+      items.forEach(t => { if (!ids.has(String(t.id))) state.liked.push(t); });
+      saveLibrary();
+      toast('Импортировано лайков: ' + items.length);
+    } else {
+      const lists = (r.playlists || []).map(p => ({
+        id: 'sc_' + p.id,
+        name: p.title || 'Плейлист SoundCloud',
+        tracks: (p.tracks || []).filter(t => t && t.id).map(normalize)
+      })).filter(p => p.tracks.length);
+      state.playlists = lists.concat(state.playlists.filter(p => !String(p.id).startsWith('sc_')));
+      saveLibrary();
+      toast('Импортировано плейлистов: ' + lists.length);
+    }
+    renderLibrary();
+  }
+
   /* ---------- player ---------- */
   function setQueue(list, startIndex) {
     state.queue = list.slice();
     state.index = startIndex;
+    if (state.shuffle) reshuffle();
     playCurrent();
   }
   async function playCurrent() {
@@ -227,21 +260,41 @@
         .catch(() => toast('Нажми ещё раз для воспроизведения'));
     } else { audio.pause(); state.playing = false; updatePlayIcons(); }
   }
+  function reshuffle() {
+    const n = state.queue.length;
+    state.shuffleOrder = Array.from({ length: n }, (_, i) => i).filter(i => i !== state.index);
+    for (let i = state.shuffleOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [state.shuffleOrder[i], state.shuffleOrder[j]] = [state.shuffleOrder[j], state.shuffleOrder[i]];
+    }
+    state.shufflePos = -1;
+  }
   function next(auto) {
     if (!state.queue.length) return;
-    if (auto && state.repeat) { audio.currentTime = 0; audio.play(); return; }
-    let i = state.index + 1;
-    if (state.shuffle) i = Math.floor(Math.random() * state.queue.length);
+    if (auto && state.repeat === 'one') { audio.currentTime = 0; audio.play(); return; }
+    let i;
+    if (state.shuffle) {
+      if (state.shufflePos >= state.shuffleOrder.length - 1) reshuffle();
+      i = state.shuffleOrder[++state.shufflePos];
+      if (i === undefined) i = state.index;
+    } else {
+      i = state.index + 1;
+    }
     if (i >= state.queue.length) {
-      if (auto) { audio.pause(); state.playing = false; updatePlayIcons(); return; }
-      i = 0;
+      if (state.repeat === 'all' || !auto) i = 0;
+      else { audio.pause(); state.playing = false; updatePlayIcons(); return; }
     }
     state.index = i; playCurrent();
   }
   function prev() {
     if (!state.queue.length) return;
     if (audio.currentTime > 3) { audio.currentTime = 0; return; }
-    state.index = (state.index - 1 + state.queue.length) % state.queue.length;
+    if (state.shuffle && state.shufflePos > 0) {
+      state.index = state.shuffleOrder[--state.shufflePos];
+    } else {
+      state.index = (state.index - 1 + state.queue.length) % state.queue.length;
+      if (state.shuffle) reshuffle();
+    }
     playCurrent();
   }
   function setSpeed(v) {
@@ -262,6 +315,70 @@
     $('muteBtn').classList.toggle('muted', value === 0);
     paintRange($('volumeBar'));
     if (persist !== false) saveSetting('volume', value);
+  }
+
+  const EQ_FREQS = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+  const EQ_PRESETS = {
+    flat:       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    bass:       [7, 6, 5, 3, 1, 0, 0, 0, 0, 0],
+    vocal:      [-2, -1, 0, 2, 4, 5, 4, 2, 0, -1],
+    electronic: [5, 4, 2, 0, -1, 2, 4, 5, 4, 3],
+    night:      [4, 3, 2, 1, 0, -1, -2, -3, -4, -5],
+    rock:       [4, 3, 1, -1, -2, 1, 3, 4, 4, 3]
+  };
+
+  function initAudioGraph() {
+    if (state.audioCtx) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) { toast('Web Audio недоступен'); return; }
+      const ctx = new Ctx();
+      state.audioCtx = ctx;
+      const src = ctx.createMediaElementSource(audio);
+
+      const bass = ctx.createBiquadFilter();
+      bass.type = 'lowshelf'; bass.frequency.value = 120;
+      state.bassNode = bass;
+
+      state.eqNodes = EQ_FREQS.map(f => {
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'peaking'; filter.frequency.value = f; filter.Q.value = 1;
+        return filter;
+      });
+
+      const amp = ctx.createGain();
+      state.ampNode = amp;
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -10; comp.ratio.value = 8; comp.attack.value = 0.003; comp.release.value = 0.25;
+
+      let node = src;
+      node.connect(bass); node = bass;
+      state.eqNodes.forEach(f => { node.connect(f); node = f; });
+      node.connect(amp); amp.connect(comp); comp.connect(ctx.destination);
+      applyEq();
+    } catch (e) { toast('Не удалось включить эквалайзер'); }
+  }
+  function applyEq() {
+    if (!state.audioCtx) return;
+    const e = state.eq;
+    state.eqNodes.forEach((n, i) => { n.gain.value = e.enabled ? e.bands[i] : 0; });
+    state.bassNode.gain.value = e.enabled ? e.bass : 0;
+    state.ampNode.gain.value = e.enabled ? e.amp / 100 : 1;
+    if (state.audioCtx.state === 'suspended') state.audioCtx.resume().catch(() => {});
+  }
+  function saveEq() { saveSetting('eq', JSON.stringify(state.eq)); applyEq(); }
+  function renderEq() {
+    $('eqToggle').classList.toggle('active', state.eq.enabled);
+    $('bassBar').value = state.eq.bass;
+    $('bassSub').textContent = state.eq.bass + ' дБ';
+    $('ampBar').value = state.eq.amp;
+    $('ampSub').textContent = (state.eq.amp / 100).toFixed(2).replace(/0$/, '') + '×';
+    paintRange($('bassBar')); paintRange($('ampBar'));
+    $('eqPresets').innerHTML = Object.keys(EQ_PRESETS).map(p =>
+      `<button data-preset="${p}" class="${state.eq.preset === p ? 'active' : ''}">${p === 'flat' ? 'Плоский' : p === 'bass' ? 'Бас' : p === 'vocal' ? 'Вокал' : p === 'electronic' ? 'Электроника' : p === 'night' ? 'Ночь' : 'Рок'}</button>`).join('');
+    $('eqBands').innerHTML = EQ_FREQS.map((f, i) =>
+      `<div class="eq-band"><input type="range" min="-12" max="12" step="1" value="${state.eq.bands[i]}" data-band="${i}" aria-label="${f} Гц"><span>${f >= 1000 ? f / 1000 + 'k' : f}</span></div>`).join('');
+    $('eqBands').querySelectorAll('[data-band]').forEach(el => paintRange(el));
   }
 
   function updatePlayIcons() {
@@ -442,9 +559,58 @@
   $('nextBtn').addEventListener('click', () => next(false));
   $('prevBtn').addEventListener('click', prev);
   $('likeBtn').addEventListener('click', () => toggleLike(state.current));
-  $('shuffleBtn').addEventListener('click', () => { state.shuffle = !state.shuffle; $('shuffleBtn').classList.toggle('on', state.shuffle); toast(state.shuffle ? 'Перемешивание включено' : 'Перемешивание выключено'); });
-  $('repeatBtn').addEventListener('click', () => { state.repeat = !state.repeat; $('repeatBtn').classList.toggle('on', state.repeat); toast(state.repeat ? 'Повтор включён' : 'Повтор выключен'); });
-  $('playerMore').addEventListener('click', () => toast('LAIN · 「接続」'));
+  $('shuffleBtn').addEventListener('click', () => {
+    state.shuffle = !state.shuffle;
+    $('shuffleBtn').classList.toggle('on', state.shuffle);
+    if (state.shuffle) reshuffle();
+    toast(state.shuffle ? 'Shuffle включён' : 'Shuffle выключен');
+  });
+  $('repeatBtn').addEventListener('click', () => {
+    state.repeat = state.repeat === 'off' ? 'all' : state.repeat === 'all' ? 'one' : 'off';
+    const btn = $('repeatBtn');
+    btn.classList.toggle('on', state.repeat !== 'off');
+    btn.classList.toggle('one', state.repeat === 'one');
+    toast(state.repeat === 'off' ? 'Повтор выключен' : state.repeat === 'all' ? 'Повтор очереди' : 'Повтор трека');
+  });
+  $('eqBtn').addEventListener('click', () => {
+    renderEq();
+    $('eqSheet').classList.add('open');
+    if (state.eq.enabled) initAudioGraph();
+  });
+  $('eqBackdrop').addEventListener('click', () => $('eqSheet').classList.remove('open'));
+  $('eqClose').addEventListener('click', () => $('eqSheet').classList.remove('open'));
+  $('eqToggle').addEventListener('click', () => {
+    state.eq.enabled = !state.eq.enabled;
+    if (state.eq.enabled) initAudioGraph();
+    $('eqToggle').classList.toggle('active', state.eq.enabled);
+    saveEq();
+    toast(state.eq.enabled ? 'Эквалайзер включён' : 'Эквалайзер выключен');
+  });
+  $('eqPresets').addEventListener('click', e => {
+    const b = e.target.closest('[data-preset]');
+    if (!b) return;
+    state.eq.preset = b.dataset.preset;
+    state.eq.bands = EQ_PRESETS[state.eq.preset].slice();
+    saveEq(); renderEq();
+    toast('Пресет: ' + b.textContent);
+  });
+  $('eqBands').addEventListener('input', e => {
+    const el = e.target.closest('[data-band]');
+    if (!el) return;
+    state.eq.bands[Number(el.dataset.band)] = Number(el.value);
+    state.eq.preset = 'custom';
+    paintRange(el); saveEq();
+  });
+  $('bassBar').addEventListener('input', e => {
+    state.eq.bass = Number(e.target.value);
+    $('bassSub').textContent = state.eq.bass + ' дБ';
+    paintRange(e.target); saveEq();
+  });
+  $('ampBar').addEventListener('input', e => {
+    state.eq.amp = Number(e.target.value);
+    $('ampSub').textContent = (state.eq.amp / 100).toFixed(2).replace(/0$/, '') + '×';
+    paintRange(e.target); saveEq();
+  });
   $('seekBar').addEventListener('input', (e) => {
     state.seeking = true; paintRange(e.target);
     const dur = audio.duration || (state.current ? state.current.duration : 0);
@@ -563,10 +729,14 @@
     }
   });
 
+  $('importLikes').addEventListener('click', () => importFromSoundCloud('likes'));
+  $('importPlaylists').addEventListener('click', () => importFromSoundCloud('playlists'));
+
   /* ---------- init ---------- */
   loadSettings();
   loadLibrary();
   try { state.localTracks = JSON.parse(state.settings.localTracks || '[]') || []; } catch (e) { state.localTracks = []; }
+  try { Object.assign(state.eq, JSON.parse(state.settings.eq || '{}')); } catch (e) {}
   $('tokenInput').value = state.settings.token;
   $('clientInput').value = state.settings.clientId;
   $('repoInput').value = state.settings.ghRepo;

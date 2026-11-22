@@ -122,6 +122,10 @@
       <label class="field-label" for="clientInput">Client ID <span class="optional">необязательно</span></label>
       <input id="clientInput" type="text" placeholder="Для прямого потока в браузере" spellcheck="false">
       <button class="filled-btn" id="saveToken">Сохранить и проверить</button>
+      <div class="import-row">
+        <button class="outline-btn" id="importLikes">♥ Импорт лайков</button>
+        <button class="outline-btn" id="importPlaylists">▤ Плейлисты</button>
+      </div>
       <details class="help-details">
         <summary>Где взять токен?</summary>
         <p>Войди в soundcloud.com в браузере → F12 → Application → Local Storage → <code>soundcloud</code> → скопируй значение <code>oauth_token</code>. Либо зарегистрируй приложение в SoundCloud API и получи токен по OAuth2.</p>
@@ -217,8 +221,8 @@
           <svg viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6 1.4 1.4-6 6-6-6 1.4-1.4Z"/></svg>
         </button>
         <div class="player-bar-label">СЕЙЧАС ИГРАЕТ</div>
-        <button class="icon-btn" id="playerMore" aria-label="Ещё">
-          <svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>
+        <button class="icon-btn" id="eqBtn" aria-label="Эквалайзер">
+          <svg viewBox="0 0 24 24"><path d="M3 17h4v-4H3v4Zm7 0h4V7h-4v10Zm7 0h4v-7h-4v7ZM3 5v2h4V5H3Zm7 0v2h4V5h-4Zm7 0v2h4V5h-4Z" opacity=".35"/><path d="M3 9h4v6H3V9Zm7-4h4v14h-4V5Zm7 5h4v6h-4v-6Z"/></svg>
         </button>
       </div>
 
@@ -287,6 +291,31 @@
           <button data-speed="2">2×</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- EQUALIZER SHEET -->
+  <div class="eq-sheet" id="eqSheet">
+    <div class="eq-backdrop" id="eqBackdrop"></div>
+    <div class="eq-panel">
+      <div class="eq-handle"></div>
+      <div class="eq-head">
+        <div><div class="eq-title">Эквалайзер</div><div class="eq-sub">10 полос · усиление звука</div></div>
+        <button class="switch" id="eqToggle" aria-label="Включить эквалайзер"><span></span></button>
+      </div>
+      <div class="eq-presets" id="eqPresets"></div>
+      <div class="eq-bands" id="eqBands"></div>
+      <div class="eq-extra">
+        <div class="eq-extra-row">
+          <div><div class="row-title">Басы</div><div class="row-sub" id="bassSub">0 дБ</div></div>
+          <input type="range" id="bassBar" min="0" max="12" step="1" value="0">
+        </div>
+        <div class="eq-extra-row">
+          <div><div class="row-title">Усилитель</div><div class="row-sub" id="ampSub">1.0×</div></div>
+          <input type="range" id="ampBar" min="100" max="300" step="5" value="100">
+        </div>
+      </div>
+      <button class="filled-btn" id="eqClose">Готово</button>
     </div>
   </div>
 
