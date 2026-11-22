@@ -13,8 +13,8 @@ RES = ROOT / "android" / "app" / "src" / "main" / "res"
 for p in (WEB_ICONS, WEB_WALL):
     p.mkdir(parents=True, exist_ok=True)
 
-BROWN = (78, 52, 46, 255)      # #4E342E
-BROWN_DARK = (62, 39, 35, 255)  # #3E2723
+BROWN = (107, 68, 58, 255)      # #6B443A
+BROWN_DARK = (59, 41, 34, 255)  # #3B2922
 CREAM = (255, 248, 241, 255)
 
 
@@ -102,7 +102,7 @@ adaptive_foreground(default).save(RES / "mipmap-xxxhdpi" / "ic_launcher_foregrou
 (RES / "values" / "ic_launcher_background.xml").parent.mkdir(parents=True, exist_ok=True)
 (RES / "values" / "ic_launcher_background.xml").write_text(
     '<?xml version="1.0" encoding="utf-8"?>\n'
-    '<resources><color name="ic_launcher_background">#4E342E</color></resources>\n',
+    '<resources><color name="ic_launcher_background">#6B443A</color></resources>\n',
     encoding="utf-8",
 )
 

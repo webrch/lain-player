@@ -53,7 +53,7 @@ class JsBridge(private val activity: MainActivity) {
         CoroutineScope(Dispatchers.IO).launch {
             val json = try {
                 val q = URLEncoder.encode(query, "UTF-8")
-                val url = StringBuilder("https://api.soundcloud.com/search/tracks?q=$q&limit=30")
+                val url = StringBuilder("https://api-v2.soundcloud.com/search/tracks?q=$q&limit=30")
                 if (clientId.isNotBlank()) {
                     url.append("&client_id=").append(URLEncoder.encode(clientId, "UTF-8"))
                 }
@@ -99,20 +99,46 @@ class JsBridge(private val activity: MainActivity) {
         CoroutineScope(Dispatchers.IO).launch {
             val json = try {
                 if (id.isBlank()) throw Exception("Нет ID трека")
-                val url = StringBuilder("https://api.soundcloud.com/tracks/$id/stream")
-                if (token.isBlank() && clientId.isNotBlank()) {
-                    url.append("?client_id=").append(URLEncoder.encode(clientId, "UTF-8"))
-                }
-                val request = Request.Builder().url(url.toString()).apply {
-                    if (token.isNotBlank()) header("Authorization", "OAuth ${token.trim()}")
-                }.build()
+                val hasToken = token.isNotBlank()
+                val clientPart = if (clientId.isNotBlank())
+                    "?client_id=" + URLEncoder.encode(clientId, "UTF-8") else ""
 
-                http.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        throw Exception("Поток недоступен (${response.code}). Возможно, трек недоступен в твоём регионе.")
-                    }
-                    JSONObject().put("url", response.request.url.toString()).toString()
+                val trackRequest = Request.Builder()
+                    .url("https://api-v2.soundcloud.com/tracks/$id$clientPart")
+                    .apply { if (hasToken) header("Authorization", "OAuth ${token.trim()}") }
+                    .build()
+                val track = http.newCall(trackRequest).execute().use { response ->
+                    if (!response.isSuccessful) throw Exception("Трек недоступен (${response.code}). Проверь токен.")
+                    JSONObject(response.body?.string().orEmpty())
                 }
+
+                val transcodings = track.optJSONObject("media")?.optJSONArray("transcodings")
+                    ?: throw Exception("У трека нет доступного потока")
+                var best = transcodings.getJSONObject(0)
+                var bestScore = -1
+                for (i in 0 until transcodings.length()) {
+                    val item = transcodings.getJSONObject(i)
+                    val score = when (item.optString("preset", "")) {
+                        "aac_160k" -> 2
+                        else -> if (item.optString("quality", "") == "sq") 1 else 0
+                    }
+                    if (score > bestScore) { bestScore = score; best = item }
+                }
+
+                var mediaUrl = best.optString("url")
+                if (clientId.isNotBlank()) {
+                    mediaUrl += (if (mediaUrl.contains("?")) "&" else "?") +
+                        "client_id=" + URLEncoder.encode(clientId, "UTF-8")
+                }
+                val mediaRequest = Request.Builder().url(mediaUrl)
+                    .apply { if (hasToken) header("Authorization", "OAuth ${token.trim()}") }
+                    .build()
+                val streamUrl = http.newCall(mediaRequest).execute().use { response ->
+                    if (!response.isSuccessful) throw Exception("Поток недоступен (${response.code})")
+                    JSONObject(response.body?.string().orEmpty()).optString("url", "")
+                }
+                if (streamUrl.isBlank()) throw Exception("Не удалось получить ссылку на поток")
+                JSONObject().put("url", streamUrl).toString()
             } catch (e: Exception) {
                 JSONObject().put("error", e.message ?: "Не удалось получить поток").toString()
             }

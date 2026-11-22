@@ -116,15 +116,15 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.parseColor("#4E342E")
-        window.navigationBarColor = Color.parseColor("#3E2723")
+        window.statusBarColor = Color.parseColor("#6B443A")
+        window.navigationBarColor = Color.parseColor("#3B2922")
 
         webView = WebView(this).apply {
             layoutParams = android.view.ViewGroup.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(Color.parseColor("#3E2723"))
+            setBackgroundColor(Color.parseColor("#F8F2ED"))
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true

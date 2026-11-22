@@ -27,7 +27,7 @@
     current: null, playing: false, seeking: false,
     shuffle: false, repeat: false, searchTimer: null,
     libTab: 'liked', cbId: 0, callbacks: {}, streamCache: {},
-    localTracks: []
+    localTracks: [], hls: null
   };
   window.__lainLocalFiles = function (json) {
     try {
@@ -135,14 +135,10 @@
       if (r.error) throw new Error(r.error);
       return (r.items || []).map(normalize);
     }
-    let url = `https://api.soundcloud.com/search/tracks?q=${encodeURIComponent(query)}&limit=30`;
+    let url = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(query)}&limit=30`;
     if (client) url += `&client_id=${encodeURIComponent(client)}`;
     const headers = token ? { 'Authorization': 'OAuth ' + token } : {};
     let res = await fetch(url, { headers });
-    if (!res.ok) {
-      url = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(query)}&limit=30&client_id=${encodeURIComponent(client)}`;
-      res = await fetch(url);
-    }
     if (!res.ok) throw new Error('Ошибка API: ' + res.status + ' (CORS?)');
     const data = await res.json();
     return (data.collection || data || []).map(normalize);
@@ -158,14 +154,24 @@
       if (r && r.url) { state.streamCache[track.id] = r.url; return r.url; }
       throw new Error((r && r.error) || 'Не удалось получить поток');
     }
-    let url = `https://api.soundcloud.com/tracks/${track.id}/stream`;
-    if (client) url += `?client_id=${encodeURIComponent(client)}`;
-    const res = await fetch(url, {
-      headers: token ? { 'Authorization': 'OAuth ' + token } : {},
-      redirect: 'follow'
-    });
-    if (!res.ok) throw new Error('Поток недоступен: ' + res.status);
-    const final = res.url || url;
+    const headers = token ? { 'Authorization': 'OAuth ' + token } : {};
+    let infoUrl = `https://api-v2.soundcloud.com/tracks/${track.id}`;
+    if (client) infoUrl += `?client_id=${encodeURIComponent(client)}`;
+    const infoRes = await fetch(infoUrl, { headers });
+    if (!infoRes.ok) throw new Error('Трек недоступен: ' + infoRes.status);
+    const info = await infoRes.json();
+    const transcodings = info.media && info.media.transcodings;
+    if (!transcodings || !transcodings.length) throw new Error('У трека нет доступного потока');
+    const best = transcodings.slice().sort((a, b) => {
+      const q = t => (t.preset === 'aac_160k' ? 2 : t.quality === 'sq' ? 1 : 0);
+      return q(b) - q(a);
+    })[0];
+    let mediaUrl = best.url;
+    if (client) mediaUrl += (mediaUrl.includes('?') ? '&' : '?') + 'client_id=' + encodeURIComponent(client);
+    const mediaRes = await fetch(mediaUrl, { headers });
+    if (!mediaRes.ok) throw new Error('Поток недоступен: ' + mediaRes.status);
+    const final = (await mediaRes.json()).url;
+    if (!final) throw new Error('Не удалось получить ссылку на поток');
     state.streamCache[track.id] = final;
     return final;
   }
@@ -187,7 +193,23 @@
     try {
       const url = await resolveStream(t);
       if (state.current && state.current.id !== t.id) return;
-      audio.src = url;
+      if (state.hls) { state.hls.destroy(); state.hls = null; }
+      audio.removeAttribute('src');
+      if (url.includes('.m3u8') && window.Hls && window.Hls.isSupported()) {
+        const hls = new window.Hls({ enableWorker: true });
+        state.hls = hls;
+        hls.loadSource(url);
+        hls.attachMedia(audio);
+        await new Promise((resolve, reject) => {
+          let done = false;
+          const finish = (err) => { if (done) return; done = true; err ? reject(err) : resolve(); };
+          hls.on(window.Hls.Events.MANIFEST_PARSED, () => finish());
+          hls.on(window.Hls.Events.ERROR, (_e, data) => { if (data && data.fatal) finish(new Error('HLS: ' + data.type)); });
+          setTimeout(() => finish(), 7000);
+        });
+      } else {
+        audio.src = url;
+      }
       audio.playbackRate = parseFloat(state.settings.speed) || 1;
       await audio.play();
       state.playing = true;
@@ -244,6 +266,7 @@
     $('miniArtist').textContent = t ? t.artist : 'LAIN';
     $('playerArt').src = art(t);
     $('miniArt').src = art(t);
+    $('sourceBadge').textContent = t && t.local ? 'ЛОКАЛЬНЫЙ ФАЙЛ' : 'SOUNDCLOUD';
     $('likeBtn').classList.toggle('liked', !!(t && isLiked(t)));
     $('curTime').textContent = '0:00'; $('durTime').textContent = t ? fmt(t.duration) : '0:00';
   }
@@ -276,6 +299,7 @@
   function paintRange(el) {
     const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
     el.style.setProperty('--pct', pct + '%');
+    if (el.id === 'seekBar' && el.parentElement) el.parentElement.style.setProperty('--progress', pct);
   }
 
   /* ---------- rendering ---------- */
