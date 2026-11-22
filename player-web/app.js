@@ -8,7 +8,7 @@
   const DEFAULTS = {
     token: '', clientId: '', wall: 'default', icon: 'cross',
     speed: '1', autoNext: 'true', dark: 'false', library: '', volume: '100', eq: '',
-    localTracks: '', ghRepo: ''
+    localTracks: ''
   };
   const WALLS = {
     default: { label: 'Море', file: 'assets/wallpaper/default.jpg' },
@@ -689,7 +689,7 @@
       return;
     }
     if (!silent) el.textContent = 'Проверяем GitHub...';
-    const r = await callNative('checkUpdate', [state.settings.ghRepo.trim()]);
+    const r = await callNative('checkUpdate', []);
     if (!r) { el.textContent = 'Не удалось проверить'; return; }
     if (r.error) { el.textContent = r.error; return; }
     window.__lainUpdateUrl = r.url || '';
@@ -739,11 +739,6 @@
   try { Object.assign(state.eq, JSON.parse(state.settings.eq || '{}')); } catch (e) {}
   $('tokenInput').value = state.settings.token;
   $('clientInput').value = state.settings.clientId;
-  $('repoInput').value = state.settings.ghRepo;
-  $('repoInput').addEventListener('change', e => {
-    saveSetting('ghRepo', e.target.value.trim());
-    checkUpdates(false);
-  });
   $('speedSetting').value = state.settings.speed;
   setSpeed(state.settings.speed);
   setVolume(state.settings.volume, false);
@@ -756,5 +751,5 @@
   paintRange($('seekBar'));
   $('tokenStatus').textContent = state.settings.token ? 'Токен сохранён ✓' : 'Токен не задан';
   if ('serviceWorker' in navigator && !native) navigator.serviceWorker.register('sw.js').catch(() => {});
-  if (native) setTimeout(() => checkUpdates(true), 1200);
+  if (native) setTimeout(() => checkUpdates(true), 300);
 })();

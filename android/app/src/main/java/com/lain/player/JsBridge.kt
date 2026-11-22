@@ -156,25 +156,21 @@ class JsBridge(private val activity: MainActivity) {
         activity.openUrl(url)
     }
 
-    /** Check the latest GitHub release of the lain-player repository. */
+    /** Update source is fixed in the app and cannot be changed from the UI. */
     @JavascriptInterface
-    fun checkUpdate(repoSetting: String, cbId: String) {
+    fun checkUpdate(cbId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             val json = try {
-                val candidates = if (repoSetting.isNotBlank()) listOf(repoSetting.trim()) else findRepos()
-                if (candidates.isEmpty()) throw Exception("Репозиторий lain-player не найден — укажи owner/repo в настройках")
-                var result: String? = null
-                var sawRelease = false
-                for (repo in candidates) {
-                    val request = Request.Builder()
-                        .url("https://api.github.com/repos/$repo/releases/latest")
-                        .header("Accept", "application/vnd.github+json")
-                        .header("User-Agent", "LAIN-Player")
-                        .build()
-                    val parsed = http.newCall(request).execute().use { response ->
-                        if (response.code == 404) return@use null
-                        if (!response.isSuccessful) return@use null
-                        sawRelease = true
+                val request = Request.Builder()
+                    .url("https://api.github.com/repos/webrch/lain-player/releases/latest")
+                    .header("Accept", "application/vnd.github+json")
+                    .header("User-Agent", "LAIN-Player")
+                    .build()
+                http.newCall(request).execute().use { response ->
+                    if (response.code == 404) {
+                        JSONObject().put("version", "").toString()
+                    } else {
+                        if (!response.isSuccessful) throw Exception("GitHub: HTTP ${response.code}")
                         val release = JSONObject(response.body?.string().orEmpty())
                         var apk = ""
                         val assets = release.optJSONArray("assets")
@@ -194,13 +190,7 @@ class JsBridge(private val activity: MainActivity) {
                             .put("notes", release.optString("body", ""))
                             .toString()
                     }
-                    if (parsed != null && (JSONObject(parsed).optString("apk", "").isNotBlank() || repoSetting.isNotBlank())) {
-                        result = parsed
-                        break
-                    }
                 }
-                result ?: if (sawRelease) JSONObject().put("version", "").toString()
-                else throw Exception("У репозитория lain-player нет APK-релиза — укажи owner/repo в настройках")
             } catch (e: Exception) {
                 JSONObject().put("error", e.message ?: "Ошибка проверки обновлений").toString()
             }
@@ -279,26 +269,6 @@ class JsBridge(private val activity: MainActivity) {
                 JSONObject().put("error", e.message ?: "Ошибка импорта").toString()
             }
             activity.eval("window.__lainCb('$cbId', ${JSONObject.quote(json)})")
-        }
-    }
-
-    private fun findRepos(): List<String> {
-        val request = Request.Builder()
-            .url("https://api.github.com/search/repositories?q=lain-player+in:name&per_page=20")
-            .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "LAIN-Player")
-            .build()
-        http.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return emptyList()
-            val items = JSONObject(response.body?.string().orEmpty()).optJSONArray("items") ?: return emptyList()
-            val found = mutableListOf<String>()
-            for (i in 0 until items.length()) {
-                val repo = items.getJSONObject(i)
-                if (repo.optString("name", "").equals("lain-player", ignoreCase = true)) {
-                    repo.optString("full_name", "").takeIf { it.isNotBlank() }?.let { found.add(it) }
-                }
-            }
-            return found
         }
     }
 }
